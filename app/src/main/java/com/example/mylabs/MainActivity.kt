@@ -1,33 +1,23 @@
 package com.example.mylabs
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.mylabs.ui.theme.MyLabsTheme
 
 class MainActivity : ComponentActivity() {
@@ -36,11 +26,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MyLabsTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    containerColor = Color.White
-                    ) { innerPadding ->
-                     MatchResultsScreen(modifier = Modifier.padding(innerPadding))
+                val navController = rememberNavController()
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    AppNavigation(
+                        navController = navController,
+                        modifier = Modifier.padding(innerPadding)
+                    )
                 }
             }
         }
@@ -48,100 +39,139 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MatchResultsScreen(modifier: Modifier = Modifier) {
-    Column(
+fun AppNavigation(navController: NavHostController, modifier: Modifier = Modifier) {
+    NavHost(
+        navController = navController,
+        startDestination = "home",
         modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "FC Bayern Match Results",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        // Row 1
-        MatchRow(
-            competition = "Bundesliga",
-            homeTeam = "Elversberg",
-            score = "1 – 2",
-            awayTeam = "Bayern München"
-        )
-        // Row 2
-        MatchRow(
-            competition = "Bundesliga",
-            homeTeam = "Bayern München",
-            score = "7 – 0",
-            awayTeam = "Union Berlin"
-        )
-
-        // Row 3
-        MatchRow(
-            competition = "Bundesliga",
-            homeTeam = "Augsburg",
-            score = "2 – 2",
-            awayTeam = "Bayern München"
-        )
-
-        // Row 4
-        MatchRow(
-            competition = "Champions League",
-            homeTeam = "Viking",
-            score = "3 – 3",
-            awayTeam = "Bayern München"
-        )
-
-        // Row 5
-        MatchRow(
-            competition = "Bundesliga",
-            homeTeam = "Bayern München",
-            score = "6 – 1",
-            awayTeam = "RB Leipzig"
-        )
+        composable("home") {
+            HomeScreen(navController = navController)
+        }
+        composable("assignment_info") {
+            AssignmentInfoScreen(navController = navController)
+        }
+        composable("student_info") {
+            StudentInfoScreen(navController = navController)
+        }
     }
 }
 
 @Composable
-fun MatchRow(
-    competition: String,
-    homeTeam: String,
-    score: String,
-    awayTeam: String
-) {
-    Row(
+fun HomeScreen(navController: NavHostController) {
+    val context = LocalContext.current
+
+    Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Red ball on the LEFT
-        Image(
-            painter = painterResource(id = R.drawable.red_ball),
-            contentDescription = "Match ball",
-            modifier = Modifier
-                .size(40.dp)
-                .padding(end = 16.dp)
+        Text(
+            text = "Lab 4 – Intents & Navigation",
+            fontSize = 22.sp,
+            modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Text in the MIDDLE
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // 1. Phone Dialer
+        Button(
+            onClick = {
+                val intent = Intent(Intent.ACTION_DIAL).apply {
+                    data = Uri.parse("tel:")
+                }
+                context.startActivity(intent)
+            },
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = competition,
-                fontSize = 12.sp,
-                color = Color.Gray
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "$homeTeam  $score  $awayTeam",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Text("Phone Dialer")
+        }
+
+        // 2. Send Email
+        Button(
+            onClick = {
+                val intent = Intent(Intent.ACTION_SENDTO).apply {
+                    data = Uri.parse("mailto:")
+                    putExtra(Intent.EXTRA_SUBJECT, "Lab 4 Information")
+                }
+                context.startActivity(intent)
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Send Email")
+        }
+
+        // 3. Map Directions – Algonquin College
+        Button(
+            onClick = {
+                val gmmIntentUri = Uri.parse("geo:0,0?q=Algonquin+College+Ottawa")
+                val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+                mapIntent.setPackage("com.google.android.apps.maps")
+                context.startActivity(mapIntent)
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Map Directions")
+        }
+
+        // 4. Assignment Info (Navigation)
+        Button(
+            onClick = { navController.navigate("assignment_info") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Assignment Info")
+        }
+
+        // 5. Student Info (Navigation)
+        Button(
+            onClick = { navController.navigate("student_info") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Student Info")
+        }
+    }
+}
+
+@Composable
+fun AssignmentInfoScreen(navController: NavHostController) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Course Code: CST 2335", fontSize = 20.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Course Title: Mobile Graphical Interface Programming", fontSize = 18.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Lab 4", fontSize = 22.sp)
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(onClick = { navController.popBackStack() }) {
+            Text("Back")
+        }
+    }
+}
+
+@Composable
+fun StudentInfoScreen(navController: NavHostController) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Name: Tharindya Anjalika", fontSize = 20.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Email: anja0007@algonquinlive.com", fontSize = 18.sp)
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(onClick = { navController.popBackStack() }) {
+            Text("Back")
         }
     }
 }
