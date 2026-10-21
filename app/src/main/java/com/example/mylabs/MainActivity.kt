@@ -86,7 +86,13 @@ fun MatchResultsScreen(modifier: Modifier = Modifier) {
             awayTeam = "Bayern München"
         )
 
-
+        // Row 4
+        MatchRow(
+            competition = "Champions League",
+            homeTeam = "Viking",
+            score = "3 – 3",
+            awayTeam = "Bayern München"
+        )
     }
 }
 
