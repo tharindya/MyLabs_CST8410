@@ -119,7 +119,7 @@ fun MatchRow(
     ) {
         // Red ball on the LEFT
         Image(
-            painter = painterResource(id = R.drawable.red_ball_background),
+            painter = painterResource(id = R.drawable.red_ball),
             contentDescription = "Match ball",
             modifier = Modifier
                 .size(40.dp)
