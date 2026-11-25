@@ -8,6 +8,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -29,17 +30,15 @@ import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-// Message data structure
+
 data class ChatMessage(
     val message: String,
     val isSent: Boolean,
     val timestamp: String
 )
 
-// Vibrate the phone when a message is added
 @Suppress("DEPRECATION")
 private fun vibratePhone(context: Context) {
-
     val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         context.getSystemService(VibratorManager::class.java).defaultVibrator
     } else {
@@ -47,7 +46,6 @@ private fun vibratePhone(context: Context) {
     }
 
     if (vibrator.hasVibrator()) {
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator.vibrate(
                 VibrationEffect.createOneShot(
@@ -63,24 +61,16 @@ private fun vibratePhone(context: Context) {
 
 @Composable
 fun ChatScreen(modifier: Modifier = Modifier) {
-
-    var messageInput by remember {
-        mutableStateOf("")
-    }
-
-    val messages = remember {
-        mutableStateListOf<ChatMessage>()
-    }
+    var messageInput by remember { mutableStateOf("") }
+    val messages = remember { mutableStateListOf<ChatMessage>() }
+    var selectedMessage by remember { mutableStateOf<ChatMessage?>(null) }
 
     val context = LocalContext.current
 
-    // Add a new message to the conversation
     fun addMessage(isSent: Boolean) {
-
         val text = messageInput.trim()
 
         if (text.isNotEmpty()) {
-
             val currentTime = SimpleDateFormat(
                 "hh:mm a",
                 Locale.getDefault()
@@ -95,18 +85,104 @@ fun ChatScreen(modifier: Modifier = Modifier) {
             )
 
             messageInput = ""
-
-            // Vibrate when a message is added
             vibratePhone(context)
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
 
+        val isTablet = maxWidth >= 600.dp
+
+        if (isTablet) {
+            // TABLET: List on the left, details on the right
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    ChatList(
+                        messages = messages,
+                        messageInput = messageInput,
+                        onMessageInputChange = { messageInput = it },
+                        onSend = { addMessage(true) },
+                        onReceive = { addMessage(false) },
+                        onMessageClick = { selectedMessage = it }
+                    )
+                }
+
+                VerticalDivider()
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    if (selectedMessage != null) {
+                        MessageDetails(
+                            message = selectedMessage!!,
+                            onClose = { selectedMessage = null },
+                            onRemove = {
+                                messages.remove(selectedMessage)
+                                selectedMessage = null
+                            }
+                        )
+                    } else {
+                        Text(
+                            text = "Select a message to view its details.",
+                            modifier = Modifier.align(Alignment.Center),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        } else {
+            // PHONE: Details replace the list when a message is selected
+            if (selectedMessage != null) {
+                MessageDetails(
+                    message = selectedMessage!!,
+                    onClose = { selectedMessage = null },
+                    onRemove = {
+                        messages.remove(selectedMessage)
+                        selectedMessage = null
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                )
+            } else {
+                ChatList(
+                    messages = messages,
+                    messageInput = messageInput,
+                    onMessageInputChange = { messageInput = it },
+                    onSend = { addMessage(true) },
+                    onReceive = { addMessage(false) },
+                    onMessageClick = { selectedMessage = it },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ChatList(
+    messages: List<ChatMessage>,
+    messageInput: String,
+    onMessageInputChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onReceive: () -> Unit,
+    onMessageClick: (ChatMessage) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
         Text(
             text = "Chat Application",
             fontSize = 26.sp,
@@ -115,10 +191,9 @@ fun ChatScreen(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Message input
         OutlinedTextField(
             value = messageInput,
-            onValueChange = { messageInput = it },
+            onValueChange = onMessageInputChange,
             label = { Text("Enter a message") },
             modifier = Modifier
                 .fillMaxWidth()
@@ -131,14 +206,12 @@ fun ChatScreen(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Send and Receive buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
             Button(
-                onClick = { addMessage(true) },
+                onClick = onSend,
                 modifier = Modifier
                     .weight(1f)
                     .testTag("SendButton")
@@ -147,7 +220,7 @@ fun ChatScreen(modifier: Modifier = Modifier) {
             }
 
             Button(
-                onClick = { addMessage(false) },
+                onClick = onReceive,
                 modifier = Modifier
                     .weight(1f)
                     .testTag("ReceiveButton")
@@ -160,7 +233,6 @@ fun ChatScreen(modifier: Modifier = Modifier) {
 
         HorizontalDivider()
 
-        // Display messages
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -168,28 +240,29 @@ fun ChatScreen(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(vertical = 12.dp)
         ) {
-
             itemsIndexed(messages) { index, message ->
-
                 MessageRow(
                     message = message,
                     messageTag = "Message$index",
-                    avatarTag = "Avatar$index"
+                    avatarTag = "Avatar$index",
+                    onClick = { onMessageClick(message) }
                 )
             }
         }
     }
 }
 
-
 @Composable
 fun MessageRow(
     message: ChatMessage,
     messageTag: String,
-    avatarTag: String
+    avatarTag: String,
+    onClick: () -> Unit = {}
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         horizontalArrangement = if (message.isSent) {
             Arrangement.Start
         } else {
@@ -198,24 +271,38 @@ fun MessageRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (message.isSent) {
-            // Send: avatar -> bubble -> timestamp
             MessageAvatar(text = "ME", avatarTag = avatarTag)
             Spacer(modifier = Modifier.width(8.dp))
+        } else {
+            Text(
+                text = message.timestamp,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+        }
 
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 250.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .padding(12.dp)
-            ) {
-                Text(
-                    text = message.message,
-                    modifier = Modifier.testTag(messageTag),
-                    fontSize = 16.sp
+        Column(
+            modifier = Modifier
+                .widthIn(max = 250.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    if (message.isSent) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    }
                 )
-            }
+                .padding(12.dp)
+        ) {
+            Text(
+                text = message.message,
+                modifier = Modifier.testTag(messageTag),
+                fontSize = 16.sp
+            )
+        }
 
+        if (message.isSent) {
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = message.timestamp,
@@ -223,28 +310,6 @@ fun MessageRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            // Receive: timestamp -> bubble -> avatar
-            Text(
-                text = message.timestamp,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 250.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .padding(12.dp)
-            ) {
-                Text(
-                    text = message.message,
-                    modifier = Modifier.testTag(messageTag),
-                    fontSize = 16.sp
-                )
-            }
-
             Spacer(modifier = Modifier.width(8.dp))
             MessageAvatar(text = "FR", avatarTag = avatarTag)
         }
@@ -252,11 +317,93 @@ fun MessageRow(
 }
 
 @Composable
-fun MessageAvatar(
-    text: String,
-    avatarTag: String
+fun MessageDetails(
+    message: ChatMessage,
+    onClose: () -> Unit,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    Column(
+        modifier = modifier.fillMaxSize()
+    ) {
+        Text(
+            text = "Message Details",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Sent messages appear on the left.
+        // Received messages appear on the right.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (message.isSent) {
+                Arrangement.Start
+            } else {
+                Arrangement.End
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 280.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        if (message.isSent) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        }
+                    )
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = message.message,
+                    fontSize = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = message.timestamp,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = if (message.isSent) "Sent" else "Received",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = onRemove,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("RemoveButton")
+        ) {
+            Text("Remove")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedButton(
+            onClick = onClose,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("CloseButton")
+        ) {
+            Text("Close")
+        }
+    }
+}
+
+@Composable
+fun MessageAvatar(text: String, avatarTag: String) {
     Box(
         modifier = Modifier
             .size(40.dp)
@@ -264,7 +411,6 @@ fun MessageAvatar(
             .background(MaterialTheme.colorScheme.tertiaryContainer),
         contentAlignment = Alignment.Center
     ) {
-
         Text(
             text = text,
             modifier = Modifier.testTag(avatarTag),
